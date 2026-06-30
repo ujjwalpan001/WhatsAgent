@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     meta_phone_number_id: str
     meta_access_token: str
     meta_verify_token: str
-    meta_app_secret: str
+    meta_app_secret: str = ""   # optional — if set, validates X-Hub-Signature-256
 
     # LLM
     groq_api_key: str                          # PRIMARY — required
