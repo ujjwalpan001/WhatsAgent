@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { api } from "./api/client";
+import { api, isLoggedIn, logout, getUser } from "./api/client";
 import { themeFor } from "./tenants";
 import WorkspaceRail from "./components/WorkspaceRail";
 import TenantSwitcher from "./components/TenantSwitcher";
@@ -7,12 +7,15 @@ import ConversationList from "./components/ConversationList";
 import ChatThread from "./components/ChatThread";
 import BroadcastDrawer from "./components/BroadcastDrawer";
 import AdminPanel from "./components/AdminPanel";
+import Login from "./components/Login";
 
 export default function App() {
-  return <Console />;
+  const [authed, setAuthed] = useState(isLoggedIn());
+  if (!authed) return <Login onSuccess={() => setAuthed(true)} />;
+  return <Console onLogout={() => { logout(); setAuthed(false); }} />;
 }
 
-function Console() {
+function Console({ onLogout }) {
   const [tenants, setTenants] = useState([]);
   const [activeTenant, setActiveTenant] = useState(null);
   const [sessions, setSessions] = useState([]);
@@ -21,6 +24,7 @@ function Console() {
   const [broadcastOpen, setBroadcastOpen] = useState(false);
   const [view, setView] = useState("console"); // "console" | "admin"
   const [listOpen, setListOpen] = useState(true);
+  const user = getUser();
 
   const theme = themeFor(activeTenant);
 
@@ -85,9 +89,10 @@ function Console() {
         onBroadcast={() => setBroadcastOpen(true)}
         view={view}
         onViewChange={setView}
-
+        onLogout={onLogout}
         listOpen={listOpen}
         onToggleList={() => setListOpen((v) => !v)}
+        user={user}
       />
 
       {view === "admin" ? (

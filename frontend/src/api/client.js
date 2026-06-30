@@ -42,24 +42,49 @@ async function upload(path, formData) {
   return res.json();
 }
 
-export async function login(password) {
-  const res = await fetch(`${BASE}/api/login`, {
+export async function signup(name, email, password) {
+  const res = await fetch(`${BASE}/api/auth/signup`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },
-    body: JSON.stringify({ password }),
+    body: JSON.stringify({ name, email, password }),
   });
-  if (!res.ok) throw new Error("Incorrect password");
-  const { token } = await res.json();
-  localStorage.setItem("admin_token", token);
-  return token;
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.detail || "Signup failed");
+  localStorage.setItem("admin_token", data.token);
+  localStorage.setItem("user_name", data.name);
+  localStorage.setItem("user_email", data.email);
+  return data;
+}
+
+export async function login(email, password) {
+  const res = await fetch(`${BASE}/api/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },
+    body: JSON.stringify({ email, password }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.detail || "Invalid email or password");
+  localStorage.setItem("admin_token", data.token);
+  localStorage.setItem("user_name", data.name);
+  localStorage.setItem("user_email", data.email);
+  return data;
 }
 
 export function logout() {
   localStorage.removeItem("admin_token");
+  localStorage.removeItem("user_name");
+  localStorage.removeItem("user_email");
 }
 
 export function isLoggedIn() {
   return !!localStorage.getItem("admin_token");
+}
+
+export function getUser() {
+  return {
+    name: localStorage.getItem("user_name") || "Admin",
+    email: localStorage.getItem("user_email") || "",
+  };
 }
 
 export const api = {
