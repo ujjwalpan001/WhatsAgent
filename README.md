@@ -1,22 +1,42 @@
-# WhatsAgent: Multi-Tenant Agentic WhatsApp Orchestrator 🤖
+# WhatsAgent: Enterprise Multi-Tenant AI WhatsApp Orchestrator 🤖
 
-> **WhatsAgent** is my submission for the AI Engineer assessment: an enterprise-grade, multi-tenant SaaS platform that allows businesses to deploy autonomous AI support and sales agents on WhatsApp. 
+> **WhatsAgent** is my official submission for the AI Engineer assessment. It is a cloud-native, enterprise-grade, multi-tenant SaaS platform that empowers businesses to deploy autonomous AI support, sales, and knowledge agents directly onto WhatsApp.
 
-Built heavily around **LangGraph**, **Groq (Llama 3.1 & 3.3 Vision)**, and the **Meta WhatsApp Cloud API**, this platform transcends a simple chatbot script. It is designed with a cloud-native, asynchronous architecture capable of handling concurrent multi-tenant webhook traffic, executing Retrieval-Augmented Generation (RAG) over business catalogs/PDFs, and providing a beautiful React dashboard for live human oversight.
+This platform goes far beyond a simple wrapper around OpenAI. Built upon **LangGraph**, **Groq (Llama 3.1 & 3.3 Vision)**, and the **Meta WhatsApp Cloud API**, it features a fully asynchronous architecture designed to handle concurrent webhook traffic across hundreds of businesses. It natively executes Retrieval-Augmented Generation (RAG) over business catalogs and PDF documents, and provides a stunning, real-time React dashboard for human oversight.
 
 ---
 
-## 🎯 How the Assignment Requirements Were Met
+## 🎯 Core Assignment Requirements Met
 
-I approached this assignment with a focus on production reliability and architectural foresight, ensuring every core requirement and bonus objective was strictly met:
+I approached this assessment with an engineering-first mindset, prioritizing production reliability, state observability, and horizontal scalability. Every single core requirement was meticulously implemented:
 
-1. **Multi-Tenant Architecture**: A single backend instance hosts infinite isolated businesses. The system intelligently routes inbound customer messages to the correct tenant context, knowledge base, and vector space simply by checking the Meta `whatsapp_phone_number_id`.
-2. **Autonomous LangGraph Agent**: Inbound text and media are passed through a strict, deterministic 4-node LangGraph state machine, drastically reducing the hallucination and looping issues common in naive ReAct agent loops. 
-3. **Rich Responses & Tool Calling**: The agent autonomously decides when to query the ChromaDB vector index, attach PDF documents from the Blob store (Media Library), or retrieve images from the product catalog.
-4. **Real-Time Human Handoff**: The React/Vite dashboard features a live unified inbox. The UI instantly updates via DB polling when an agent escalates a chat.
-5. **Bonus 1 (Webhook Security)**: Implemented cryptographic HMAC SHA-256 validation in the webhook router (`X-Hub-Signature-256`) to guarantee payloads genuinely originate from Meta.
-6. **Bonus 2 (Multimodal Vision)**: When a customer sends an image, the pipeline dynamically passes the bytes to **Groq Llama 3.2 Vision** to generate a semantic description, which is instantly injected into the LLM conversational state.
-7. **Bonus 3 (Sentiment Escalation)**: The system prompt actively monitors user sentiment. If a user exhibits frustration, the LLM autonomously triggers the `escalate_to_human` tool, halting auto-replies and flagging the conversation red on the dashboard.
+1. **True Multi-Tenant Architecture**: A single deployed backend instance can host an infinite number of isolated businesses. The system intelligently routes inbound customer messages to the correct tenant context, brand persona, and vector space simply by evaluating the inbound `whatsapp_phone_number_id`.
+2. **Autonomous LangGraph State Machine**: Instead of relying on a naive, unpredictable ReAct loop, inbound text and media are passed through a strict, deterministic 4-node LangGraph pipeline. This drastically reduces LLM hallucination and infinite looping.
+3. **Rich Responses & Tool Calling**: The agent does not just output text. It autonomously decides when to trigger tools to query the ChromaDB vector index, attach PDF documents from the Blob store (Media Library), or retrieve product images from the e-commerce catalog.
+4. **Real-Time Human Handoff**: The React/Vite dashboard features a live, unified inbox utilizing background database polling. When an agent flags a conversation for escalation, the UI instantly updates, allowing human operators to take over seamlessly.
+
+---
+
+## 🌟 Bonus Features Implemented (100% Complete)
+
+In addition to the core requirements, all three bonus features were fully engineered and integrated into the primary workflow:
+
+1. **Bonus 1: Webhook Security (X-Hub-Signature-256)**: Exposing a public webhook invites malicious traffic. I implemented cryptographic HMAC SHA-256 validation in the webhook router (`X-Hub-Signature-256`). By comparing a hash generated using the local `META_APP_SECRET` against the hash provided in Meta's request headers, the system mathematically guarantees that payloads genuinely originate from Meta and immediately rejects forged requests with a `403 Forbidden` error.
+2. **Bonus 2: Multimodal Inbound Vision**: When a customer sends an image (e.g., a photo of a broken product), the pipeline dynamically intercepts the bytes and passes them to **Groq Llama 3.2 Vision**. The Vision model generates a semantic description of the image, which is instantly injected into the LLM conversational state before the main reasoning node triggers.
+3. **Bonus 3: Sentiment & Frustration Escalation**: The LLM's system prompt actively monitors user sentiment. If a user exhibits frustration, anger, or explicitly demands human intervention, the LLM autonomously triggers the `escalate_to_human` tool. This halts all further auto-replies, updates the database enum to `NEEDS_HUMAN`, and flags the conversation red on the dashboard.
+
+---
+
+## 🛠️ Technology Stack Breakdown
+
+The stack was chosen specifically for low-latency AI messaging and stateless containerized deployment:
+
+* **FastAPI (Python)**: Acts as the core backend router. Chosen for its native asynchronous capabilities and background task offloading, which is critical for surviving Meta's strict webhook timeout windows.
+* **LangGraph**: Serves as the AI orchestration layer. Chosen over LangChain's default agents because it allows defining cyclic graphs as deterministic state machines, ensuring the AI never goes off-script.
+* **Groq (LPU Inference)**: Powering both text (Llama 3.1 8B) and vision (Llama 3.2 11B). Chosen because WhatsApp users abandon bots if they have to wait 5+ seconds for a reply. Groq's blazing-fast Time-To-First-Token (TTFT) keeps the chat feeling instantaneous.
+* **React + Vite + TailwindCSS**: The frontend dashboard stack. Chosen for rapid UI iteration, incredibly fast HMR during development, and minimal bundle sizes for production.
+* **MongoDB + GridFS**: The primary operational database. Because LLM memory and LangGraph state can be highly unstructured, a NoSQL document database is superior. GridFS was used to natively store PDF/Image blobs, entirely removing the need for a separate AWS S3 bucket.
+* **ChromaDB**: The local vector database. Chosen for its speed and lightweight integration for generating embeddings and performing semantic search on tenant catalogs and PDFs.
 
 ---
 
@@ -106,11 +126,21 @@ The graph is designed as a direct pipeline with 4 distinct nodes:
    - **Action**: Queries ChromaDB (RAG) based on the customer's text. If the customer sent an image, it halts to query Groq Vision to generate a description.
    - **Edge**: Flows to `llm_reasoning_node`.
 3. **`llm_reasoning_node`**
-   - **Action**: Assembles a massive context window (Persona + RAG Chunks + Media Availability + Conversation History). Calls Groq for reasoning and tool calling (`search_catalog`, `get_media`, `escalate_to_human`).
+   - **Action**: Assembles a massive context window (Persona + RAG Chunks + Media Availability + Conversation History). Calls Groq for reasoning and tool calling.
    - **Edge**: Flows to `dispatcher_node`.
 4. **`dispatcher_node`**
    - **Action**: Executes the final HTTP requests to the Meta API to deliver text and rich media, and saves the outbound audit log to MongoDB.
    - **Edge**: END.
+
+---
+
+## ⚙️ AI Tool Calling Capabilities
+
+The `llm_reasoning_node` grants the LLM access to specific bound tools, allowing it to interact with the broader system securely:
+
+1. `search_catalog(query: str)`: Executes a vector search against the ChromaDB catalog collection to find matching e-commerce products (with images, prices, and AI-generated descriptions).
+2. `get_media(keyword: str)`: Allows the LLM to pull specific PDF brochures, manuals, or images from the MongoDB GridFS media library to attach to the outbound WhatsApp message.
+3. `escalate_to_human(reason: str)`: A critical tool that instantly pauses the AI execution pipeline and updates the session status in MongoDB, notifying the human operators on the frontend.
 
 ---
 
@@ -121,7 +151,6 @@ During development, several crucial engineering decisions were made to prioritiz
 1. **FastAPI Background Tasks**: Meta's webhook system strictly demands a `200 OK` response within a few seconds, otherwise it will drop the webhook and retry later. Because LangGraph LLM inference can take 2-4 seconds, processing the webhook synchronously is dangerous. I utilized FastAPI `BackgroundTasks` to instantly respond to Meta, while the LangGraph pipeline executes in a detached async thread.
 2. **Idempotency with MongoDB**: Because webhooks can occasionally double-fire over the network, I implemented a `processed_webhooks` collection. By storing every incoming `message_id`, the system performs an atomic check. If a duplicate webhook arrives, it is safely ignored, preventing the LLM from spamming the customer twice.
 3. **MongoDB GridFS over AWS S3**: To simplify the deployment footprint and reduce vendor lock-in for this assessment, I opted to use MongoDB GridFS as the primary Blob store for PDF catalogs and customer images. This ensures the backend containers remain entirely stateless and horizontally scalable without needing external S3 buckets.
-4. **Groq Inference**: Instead of defaulting to OpenAI GPT-4o, I integrated Groq's Llama 3.1 and 3.2 Vision models. Groq's LPU architecture provides blazing-fast time-to-first-token (TTFT), which is critical for real-time messaging environments like WhatsApp where high latency causes user abandonment.
 
 ---
 
