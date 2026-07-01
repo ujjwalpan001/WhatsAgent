@@ -19,42 +19,63 @@
 The platform leverages an asynchronous, event-driven architecture to ensure webhook endpoints respond within Meta's stringent timeout limits, while complex LLM reasoning happens reliably in the background.
 
 ```mermaid
-sequenceDiagram
-    participant Customer
-    participant Meta API
-    participant FastAPI
-    participant LangGraph
-    participant ChromaDB
-    participant Groq LLM
-    participant Dashboard
+flowchart TD
+    %% Styling
+    classDef external fill:#2d3748,stroke:#a0aec0,stroke-width:2px,color:#fff;
+    classDef api fill:#3182ce,stroke:#fff,stroke-width:2px,color:#fff;
+    classDef agent fill:#805ad5,stroke:#fff,stroke-width:2px,color:#fff;
+    classDef llm fill:#e53e3e,stroke:#fff,stroke-width:2px,color:#fff;
+    classDef db fill:#38a169,stroke:#fff,stroke-width:2px,color:#fff;
 
-    Customer->>Meta API: Sends Message (Text/PDF)
-    Meta API->>FastAPI: Webhook POST Event
-    FastAPI-->>Meta API: 200 OK (Instant Ack)
-    FastAPI->>LangGraph: Spawn Background Task
-    
-    rect rgb(22, 27, 34)
-        note right of LangGraph: Autonomous Agent Pipeline
-        LangGraph->>Meta API: Dispatch Read Receipt & Typing...
-        LangGraph->>ChromaDB: Semantic Search (Query)
-        ChromaDB-->>LangGraph: Retrieved RAG Chunks
-        LangGraph->>Groq LLM: System Prompt + History + Context
-        Groq LLM-->>LangGraph: Tool Calls (Search/Get Media/Escalate)
-        LangGraph->>Groq LLM: Execute Tools & Re-prompt
-        Groq LLM-->>LangGraph: Final Conversational Reply
+    Customer((Customer\nWhatsApp)):::external
+    MetaAPI[Meta Cloud API]:::external
+    Dashboard((React Dashboard\nLive Inbox)):::external
+
+    Customer -- "Sends Text/Image/PDF" --> MetaAPI
+
+    subgraph Phase1 [Phase 1: High-Speed Webhook Intake]
+        Webhook{FastAPI Webhook\nEndpoint}:::api
+        MongoQueue[(MongoDB:\nProcessed Webhooks)]:::db
+        
+        MetaAPI -- "POST Event Payload" --> Webhook
+        Webhook -- "1. Idempotency Check" --> MongoQueue
+        Webhook -- "2. Return 200 OK (< 1s)" --> MetaAPI
     end
-    
-    LangGraph->>Meta API: Dispatch Reply / Send PDF Attachment
-    Meta API->>Customer: Message Delivered
-    LangGraph->>FastAPI: Update MongoDB Session State
-    FastAPI->>Dashboard: Real-Time Sync (Live Chats)
-    
-    alt Human Handoff Triggered
-        Groq LLM-->>LangGraph: Call `escalate_to_human`
-        LangGraph->>FastAPI: Set session to NEEDS_HUMAN
-        FastAPI->>Dashboard: Ring Notification Bell
-        Dashboard->>Meta API: Human Agent Replies Manually
+
+    subgraph Phase2 [Phase 2: LangGraph Agent Pipeline]
+        AgentStart(Spawn Detached Background Task)
+        
+        NodeAck[Node 1: Acknowledge]:::agent
+        NodeContext[Node 2: Context Retriever]:::agent
+        NodeReason[Node 3: LLM Reasoning & Tools]:::agent
+        NodeDispatch[Node 4: Dispatch Reply]:::agent
+        
+        Webhook -- "3. Start Agent Workflow" --> AgentStart
+        AgentStart --> NodeAck
+        
+        NodeAck -- "Send Typing Indicator" --> MetaAPI
+        NodeAck --> NodeContext
+        NodeContext --> NodeReason
+        NodeReason -- "Loops until tools finish" --> NodeReason
+        NodeReason --> NodeDispatch
     end
+
+    subgraph External AI & Data Services
+        Chroma[(ChromaDB\nVector Space)]:::db
+        MongoState[(MongoDB:\nSessions & Audit)]:::db
+        Gemini[Gemini Vision\nAPI]:::llm
+        Groq[Groq Llama 3.1\nInference]:::llm
+    end
+
+    NodeContext -- "Semantic Search" --> Chroma
+    NodeContext -- "Analyze Image" --> Gemini
+    NodeReason -- "Context + Tool Schema" --> Groq
+    Groq -- "Generates Tool Calls / Final Answer" --> NodeReason
+    
+    NodeDispatch -- "Send Final Output" --> MetaAPI
+    NodeDispatch -- "Update Chat History" --> MongoState
+    
+    MongoState -- "Polls active sessions" --> Dashboard
 ```
 
 ---
