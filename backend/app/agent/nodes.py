@@ -6,9 +6,6 @@ import re
 from datetime import datetime
 from uuid import uuid4
 
-from google import genai
-from google.genai import types
-
 from app.agent.state import AgentState
 from app.agent.tools import TOOLS
 from app.config import settings
@@ -19,23 +16,9 @@ from app.whatsapp import client as wa
 
 logger = logging.getLogger(__name__)
 
-GEMINI_MODEL = settings.gemini_model
-
-# LLM clients are created LAZILY (on first use), never at import time — so a missing
-# or bad key can never crash app startup. Gemini = vision only; Groq = primary reasoning.
-_gemini_client = None
+# LLM clients are created LAZILY (on first use), never at import time
 _groq_client = None
 _groq_init_done = False
-
-
-def _get_gemini():
-    global _gemini_client
-    if _gemini_client is None and settings.gemini_api_key:
-        try:
-            _gemini_client = genai.Client(api_key=settings.gemini_api_key)
-        except Exception as e:
-            logger.warning(f"Gemini client unavailable: {e}")
-    return _gemini_client
 
 
 async def _groq_create(groq, **kwargs):
@@ -269,24 +252,42 @@ async def _handle_inbound_image(state: AgentState, db, img_bytes: bytes) -> None
     except Exception as e:
         logger.warning(f"Failed to persist inbound image: {e}")
 
-    # Gemini Vision description (fed into the LLM context)
-    gem = _get_gemini()
-    if gem is None:
-        logger.warning("Gemini client not available — skipping vision description")
+    # Groq Vision description (fed into the LLM context)
+    groq = _get_groq()
+    if not groq:
+        logger.warning("Groq client not available — skipping vision description")
         return
-    vision_resp = gem.models.generate_content(
-        model=GEMINI_MODEL,
-        contents=[
-            types.Part.from_bytes(data=img_bytes, mime_type="image/jpeg"),
-            types.Part.from_text(text=(
-                "Describe this image concisely for a customer service agent. "
-                "Focus on: what product or item is shown, its appearance, condition, "
-                "color, style, and any details relevant to helping the customer."
-            )),
-        ],
-    )
-    state["inbound_image_description"] = vision_resp.text
-    logger.info(f"[VISION] {(state['inbound_image_description'] or '')[:100]}")
+        
+    b64_img = base64.b64encode(img_bytes).decode('utf-8')
+    
+    try:
+        vision_resp = await _groq_create(
+            groq,
+            model="llama-3.2-11b-vision-preview",
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text", 
+                            "text": "Describe this image concisely for a customer service agent. Focus on: what product or item is shown, its appearance, condition, color, style, and any details relevant to helping the customer."
+                        },
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/jpeg;base64,{b64_img}",
+                            },
+                        },
+                    ],
+                }
+            ],
+            temperature=0.2,
+            max_tokens=300
+        )
+        state["inbound_image_description"] = vision_resp.choices[0].message.content
+        logger.info(f"[VISION] {(state['inbound_image_description'] or '')[:100]}")
+    except Exception as e:
+        logger.warning(f"Groq Vision failed: {e}")
 
 
 # ---------------------------------------------------------------------------
@@ -340,6 +341,11 @@ def _build_system_prompt(tenant: dict, rag_chunks: list, catalog_names: list | N
             "\nBase your answer on the knowledge base above. "
             "Do not fabricate prices, specs, or policies not mentioned."
         )
+        
+    prompt += (
+        "\n\nIMPORTANT: If the user uses frustrated language, complains, or exhibits a negative sentiment, "
+        "you MUST immediately trigger the escalate_to_human tool so a live agent can take over."
+    )
     return prompt
 
 

@@ -10,7 +10,15 @@
 - **Autonomous RAG Agent**: An advanced LangGraph pipeline processes inbound messages, semantically searches the tenant's vector database (ChromaDB), and generates highly accurate, context-aware responses using Groq.
 - **Intelligent Tool Calling**: The agent can autonomously decide to query the product catalog, attach PDF documents from the Media Library, or seamlessly escalate complex queries to a human agent.
 - **Real-Time Human Handoff**: The React/Vite dashboard features a live unified inbox. When the AI escalates a chat, agents receive instant notifications and can take over the conversation directly through the platform.
-- **Multimodal Capabilities**: Capable of processing inbound images using Gemini Vision and attaching dynamic documents/images to outbound messages.
+- **Multimodal Capabilities**: Capable of processing inbound images using Groq's Llama 3.2 Vision models and attaching dynamic documents/images to outbound messages.
+
+---
+
+## 🌟 Bonus Features Implemented (100% Complete)
+
+- **Webhook Security (X-Hub-Signature-256)**: Implemented cryptographic HMAC SHA-256 validation in the webhook router to guarantee payloads genuinely originate from Meta.
+- **Inbound Media Parsing**: Implemented full multimodal capability. When a customer sends an image, the pipeline dynamically passes the bytes to **Groq Llama 3.2 Vision** to generate a semantic description, which is injected back into the LLM conversational state.
+- **Sentiment & Frustration Escalation**: The system prompt actively monitors user sentiment. If a user exhibits frustration or complains, the LLM autonomously triggers the `escalate_to_human` tool, which halts auto-replies and flags the conversation in red on the React Dashboard.
 
 ---
 
@@ -63,12 +71,12 @@ flowchart TD
     subgraph External AI & Data Services
         Chroma[(ChromaDB\nVector Space)]:::db
         MongoState[(MongoDB:\nSessions & Audit)]:::db
-        Gemini[Gemini Vision\nAPI]:::llm
+        GroqVision[Groq Llama 3.2\nVision]:::llm
         Groq[Groq Llama 3.1\nInference]:::llm
     end
 
     NodeContext -- "Semantic Search" --> Chroma
-    NodeContext -- "Analyze Image" --> Gemini
+    NodeContext -- "Analyze Image" --> GroqVision
     NodeReason -- "Context + Tool Schema" --> Groq
     Groq -- "Generates Tool Calls / Final Answer" --> NodeReason
     
@@ -102,7 +110,7 @@ The graph is designed as a direct pipeline with 4 distinct nodes:
    - **Edge**: Flows directly to `context_retriever_node`.
 
 2. **`context_retriever_node`**
-   - **Action**: Queries ChromaDB (RAG) based on the customer's text. If the customer sent an image, it queries Gemini 2.0 Flash to generate a vision description. If they sent a PDF, it chunks and embeds the PDF dynamically.
+   - **Action**: Queries ChromaDB (RAG) based on the customer's text. If the customer sent an image, it queries Groq Llama 3.2 Vision to generate a vision description. If they sent a PDF, it chunks and embeds the PDF dynamically.
    - **State Mutation**: Injects `rag_chunks`, `catalog_names`, and `chat_history` into the state.
    - **Edge**: Flows to `llm_reasoning_node`.
 
@@ -126,7 +134,7 @@ Follow these instructions to run the full stack locally for development or testi
 - **Python 3.11+**
 - **Node.js 18+**
 - **MongoDB**: A local instance (`localhost:27017`) or an Atlas Cluster URI.
-- **API Keys**: Groq (for LLM reasoning), Gemini (for Vision), and Meta (for WhatsApp Cloud API).
+- **API Keys**: Groq (for LLM reasoning & Vision) and Meta (for WhatsApp Cloud API).
 
 ### 1. Environment Configuration (`.env`)
 First, copy the example environment file:
@@ -150,9 +158,6 @@ META_APP_SECRET=your_app_secret
 # AI Models
 GROQ_API_KEY=gsk_your_groq_key
 GROQ_MODEL=llama-3.1-8b-instant
-
-GEMINI_API_KEY=AIzaSy_your_gemini_key
-GEMINI_MODEL=gemini-2.0-flash
 
 # System Settings
 ADMIN_PASSWORD=your_dashboard_password
