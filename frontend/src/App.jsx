@@ -1,37 +1,34 @@
 import { useEffect, useState, useCallback } from "react";
-import { api, isLoggedIn, logout, getUser } from "./api/client";
-import { themeFor } from "./tenants";
-import WorkspaceRail from "./components/WorkspaceRail";
-import TenantSwitcher from "./components/TenantSwitcher";
-import ConversationList from "./components/ConversationList";
-import ChatThread from "./components/ChatThread";
-import BroadcastDrawer from "./components/BroadcastDrawer";
-import AdminPanel from "./components/AdminPanel";
+import { api, isLoggedIn, logout } from "./api/client";
 import Login from "./components/Login";
+import Layout from "./components/Layout";
+
+// New Pages
+import DashboardOverview from "./pages/DashboardOverview";
+import LiveChats from "./pages/LiveChats";
+import AgentMonitoring from "./pages/AgentMonitoring";
+import Analytics from "./pages/Analytics";
+import Broadcasts from "./pages/Broadcasts";
+import MediaLibrary from "./pages/MediaLibrary";
+import TenantManagement from "./pages/TenantManagement";
+import WhatsAppSimulator from "./pages/WhatsAppSimulator";
+
+// Force logout on initial load for demo purposes so the Login page always comes first
+if (!sessionStorage.getItem("demo_init")) {
+  logout();
+  sessionStorage.setItem("demo_init", "true");
+}
 
 export default function App() {
   const [authed, setAuthed] = useState(isLoggedIn());
   if (!authed) return <Login onSuccess={() => setAuthed(true)} />;
-  return <Console onLogout={() => { logout(); setAuthed(false); }} />;
+  return <Console />;
 }
 
-function Console({ onLogout }) {
+function Console() {
   const [tenants, setTenants] = useState([]);
   const [activeTenant, setActiveTenant] = useState(null);
-  const [sessions, setSessions] = useState([]);
-  const [activeSession, setActiveSession] = useState(null);
-  const [messages, setMessages] = useState([]);
-  const [broadcastOpen, setBroadcastOpen] = useState(false);
-  const [view, setView] = useState("console"); // "console" | "admin"
-  const [listOpen, setListOpen] = useState(true);
-  const user = getUser();
-
-  const theme = themeFor(activeTenant);
-
-  // Re-theme the console to the active tenant
-  useEffect(() => {
-    document.documentElement.style.setProperty("--tenant", theme.accent);
-  }, [theme.accent]);
+  const [view, setView] = useState("overview");
 
   const loadTenants = useCallback(() => {
     return api.getTenants().then((d) => {
@@ -42,102 +39,67 @@ function Console({ onLogout }) {
 
   useEffect(() => { loadTenants(); }, [loadTenants]);
 
-  const loadSessions = useCallback(() => {
-    if (!activeTenant || document.hidden) return;
-    api.getSessions(activeTenant).then((d) => setSessions(d.sessions)).catch(console.error);
-  }, [activeTenant]);
-
-  useEffect(() => {
-    loadSessions();
-    const id = setInterval(loadSessions, 5000);
-    return () => clearInterval(id);
-  }, [loadSessions]);
-
-  const loadMessages = useCallback(() => {
-    if (!activeSession || document.hidden) return;
-    api.getMessages(activeSession.session_id).then((d) => setMessages(d.messages)).catch(console.error);
-  }, [activeSession]);
-
-  useEffect(() => {
-    loadMessages();
-    const id = setInterval(loadMessages, 3000);
-    return () => clearInterval(id);
-  }, [loadMessages]);
-
-  useEffect(() => {
-    setActiveSession(null);
-    setMessages([]);
-  }, [activeTenant]);
-
-  // keep active session fresh; clear it if it was deleted
-  useEffect(() => {
-    if (!activeSession || sessions.length === 0) return;
-    const fresh = sessions.find((s) => s.session_id === activeSession.session_id);
-    if (!fresh) { setActiveSession(null); setMessages([]); }
-    else if (fresh.status !== activeSession.status) setActiveSession(fresh);
-  }, [sessions, activeSession]);
-
   const activeTenantObj = tenants.find((t) => t.tenant_id === activeTenant);
 
-  return (
-    <div className="h-full flex bg-canvas text-ink">
-      {/* Far-left workspace rail */}
-      <WorkspaceRail
-        tenants={tenants}
-        activeTenant={activeTenant}
-        onSelect={setActiveTenant}
-        onBroadcast={() => setBroadcastOpen(true)}
-        view={view}
-        onViewChange={setView}
-        onLogout={onLogout}
-        listOpen={listOpen}
-        onToggleList={() => setListOpen((v) => !v)}
-        user={user}
-      />
-
-      {view === "admin" ? (
-        <AdminPanel
-          tenantId={activeTenant}
-          tenantName={activeTenantObj?.name || "—"}
-          tenants={tenants}
-          onSelectTenant={setActiveTenant}
-          onTenantsChanged={loadTenants}
-        />
-      ) : (
-        <>
-          {/* Middle: switcher + conversation list (collapsible) */}
-          <section className={`shrink-0 flex flex-col border-r border-hair bg-surface overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] ${listOpen ? "w-[360px]" : "w-0 border-r-0"}`}>
-            <header className="px-4 pt-4 pb-4">
-              <TenantSwitcher tenants={tenants} activeTenant={activeTenant} onSelect={setActiveTenant} />
-              <div className="flex items-center gap-1.5 text-[11.5px] text-muted mt-3 px-1">
-                <span className="w-1.5 h-1.5 rounded-full accent-bg animate-pulsedot" />
-                <span>Live · {theme.persona}</span>
+  const renderPage = () => {
+    switch (view) {
+      case "overview":
+        return <DashboardOverview tenantId={activeTenant} />;
+      case "live-chats":
+        return <LiveChats tenantId={activeTenant} />;
+      case "agent-monitoring":
+        return <AgentMonitoring tenantId={activeTenant} />;
+      case "broadcasts":
+        return <Broadcasts tenantId={activeTenant} />;
+      case "media-library":
+        return <MediaLibrary tenantId={activeTenant} />;
+      case "tenants":
+        return <TenantManagement tenants={tenants} activeTenant={activeTenant} onSelectTenant={setActiveTenant} onTenantsChanged={loadTenants} />;
+      case "analytics":
+        return <Analytics tenantId={activeTenant} />;
+      case "simulator":
+        return <WhatsAppSimulator tenantId={activeTenant} activeTenantName={activeTenantObj?.name} tenants={tenants} />;
+      case "settings":
+        return (
+           <div className="p-8 max-w-4xl mx-auto">
+              <h1 className="text-2xl font-display font-semibold mb-2 text-ink">Settings</h1>
+              <p className="text-[14px] text-muted mb-8">Global configuration for the WhatsAgent platform.</p>
+              
+              <div className="space-y-6">
+                <div className="bg-surface border border-hair rounded-xl p-6">
+                  <h3 className="text-[15px] font-display font-semibold mb-4">Global API Keys</h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-[11px] font-semibold text-muted uppercase tracking-wider mb-1.5">Groq API Key (Llama 3)</label>
+                      <input type="password" placeholder="gsk_..." className="w-full px-3 py-2 bg-canvas border border-hair rounded-lg text-[13px] text-ink focus:outline-none focus:border-brand font-mono" />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-semibold text-muted uppercase tracking-wider mb-1.5">Meta Webhook Verify Token</label>
+                      <input type="text" placeholder="Your secure token" className="w-full px-3 py-2 bg-canvas border border-hair rounded-lg text-[13px] text-ink focus:outline-none focus:border-brand font-mono" />
+                    </div>
+                  </div>
+                  <button className="mt-6 bg-surface border border-hair text-ink text-[13px] font-medium px-4 py-2 rounded-lg hover:bg-canvas transition-colors">
+                    Save Global Settings
+                  </button>
+                </div>
               </div>
-            </header>
+           </div>
+        );
+      default:
+        return null;
+    }
+  };
 
-            <div className="flex-1 overflow-y-auto">
-              <ConversationList
-                sessions={sessions}
-                activeId={activeSession?.session_id}
-                onSelect={setActiveSession}
-              />
-            </div>
-          </section>
-
-          {/* Right: chat thread */}
-          <main className="flex-1 min-w-0 flex flex-col">
-            <ChatThread session={activeSession} messages={messages} onChanged={loadSessions} />
-          </main>
-        </>
-      )}
-
-      <BroadcastDrawer
-        open={broadcastOpen}
-        onClose={() => setBroadcastOpen(false)}
-        tenantId={activeTenant}
-        tenants={tenants}
-        sessions={sessions}
-      />
-    </div>
+  return (
+    <Layout
+      view={view}
+      onViewChange={setView}
+      tenants={tenants}
+      activeTenant={activeTenant}
+      activeTenantName={activeTenantObj?.name}
+      onSelectTenant={setActiveTenant}
+    >
+      {renderPage()}
+    </Layout>
   );
 }

@@ -1,9 +1,10 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@500;600;700&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --tenant: #2d5a4a; /* overridden per active tenant */
+  --tenant: #6366f1; /* default neon indigo */
 }
 
 * { box-sizing: border-box; }
@@ -12,21 +13,20 @@ html, body, #root { height: 100%; }
 body {
   margin: 0;
   font-family: "Inter", system-ui, sans-serif;
-  color: #1a1714;
-  background: #f3efe7;
+  color: #FAFAFA;
+  background: #09090B;
   -webkit-font-smoothing: antialiased;
 }
 
-/* Fraunces optical sizing for editorial headings */
+/* Modern clean typography */
 .font-display {
-  font-optical-sizing: auto;
+  font-family: "Outfit", system-ui, sans-serif;
   letter-spacing: -0.01em;
 }
 
-/* Warm WhatsApp chat doodle background */
+/* Deep immersive chat canvas without messy doodles */
 .chat-canvas {
-  background-color: #e9e2d6;
-  background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23d2c8b6' fill-opacity='0.35'%3E%3Cpath d='M30 5l2 6h-4zM10 25a4 4 0 100 8 4 4 0 000-8zM48 40l3 5h-6z'/%3E%3Ccircle cx='45' cy='12' r='2'/%3E%3Ccircle cx='18' cy='48' r='2'/%3E%3C/g%3E%3C/svg%3E");
+  background-color: #09090B;
 }
 
 .accent-text { color: var(--tenant); }
@@ -37,8 +37,8 @@ body {
 .tabular { font-variant-numeric: tabular-nums; }
 
 ::-webkit-scrollbar { width: 9px; height: 9px; }
-::-webkit-scrollbar-thumb { background: #d8cfbf; border-radius: 5px; }
-::-webkit-scrollbar-thumb:hover { background: #c4b9a4; }
+::-webkit-scrollbar-thumb { background: #27272A; border-radius: 5px; }
+::-webkit-scrollbar-thumb:hover { background: #52525B; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }

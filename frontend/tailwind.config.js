@@ -4,29 +4,29 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        display: ['"Fraunces"', "Georgia", "serif"],
+        display: ['"Outfit"', "system-ui", "sans-serif"],
         sans: ['"Inter"', "system-ui", "sans-serif"],
         mono: ['"JetBrains Mono"', "ui-monospace", "monospace"],
       },
       colors: {
-        canvas: "#F3EFE7",   // warm paper
-        surface: "#FFFFFF",
-        ink: "#1A1714",      // warm near-black
-        muted: "#79716A",
-        faint: "#A99F92",
-        hair: "#E7E0D4",     // warm hairline
-        rail: "#26231E",     // warm charcoal (sidebar)
+        canvas: "#09090B",   // Ultra-dark zinc
+        surface: "#18181B",  // Card background
+        ink: "#FAFAFA",      // Bright white text
+        muted: "#A1A1AA",    // Zinc-400
+        faint: "#52525B",    // Zinc-600
+        hair: "#27272A",     // Zinc-800 borders
+        rail: "#050505",     // Pure black sidebar
         brand: {
-          DEFAULT: "#2D5A4A",  // deep pine
-          deep: "#1F4034",
-          soft: "#E8EFEA",
+          DEFAULT: "#6366F1",  // Neon Indigo
+          deep: "#818CF8",
+          soft: "rgba(99, 102, 241, 0.1)",
         },
-        alert: { DEFAULT: "#C4543F", soft: "#F7E9E4" },
+        alert: { DEFAULT: "#EF4444", soft: "rgba(239, 68, 68, 0.1)" },
         chat: {
-          bg: "#E9E2D6",       // warm whatsapp canvas
-          out: "#DCEFD6",
-          in: "#FFFFFF",
-          header: "#2D5A4A",
+          bg: "#09090B",       
+          out: "#1E1E24",
+          in: "#27272A",
+          header: "#18181B",
         },
       },
       boxShadow: {

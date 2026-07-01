@@ -80,8 +80,8 @@ export default function ChatThread({ session, messages, onChanged }) {
   if (!session) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center chat-canvas">
-        <div className="w-16 h-16 rounded-2xl bg-white shadow-card flex items-center justify-center mb-4">
-          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#2D5A4A" strokeWidth="1.5">
+        <div className="w-16 h-16 rounded-2xl bg-surface shadow-card flex items-center justify-center mb-4">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#6366F1" strokeWidth="1.5">
             <path d="M21 11.5a8.4 8.4 0 01-12 7.6L3 21l1.9-5.8A8.5 8.5 0 1121 11.5z" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
         </div>
