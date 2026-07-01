@@ -19,7 +19,6 @@ import { getUser, logout, api } from "../api/client";
 const NAVIGATION = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
   { id: "live-chats", label: "Live Chats", icon: MessageSquare },
-  { id: "agent-monitoring", label: "Agent Monitoring", icon: Activity },
   { id: "broadcasts", label: "Broadcasts", icon: Megaphone },
   { id: "media-library", label: "Media Library", icon: ImageIcon },
   { id: "tenants", label: "Tenants", icon: Users },

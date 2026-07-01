@@ -6,7 +6,6 @@ import Layout from "./components/Layout";
 // New Pages
 import DashboardOverview from "./pages/DashboardOverview";
 import LiveChats from "./pages/LiveChats";
-import AgentMonitoring from "./pages/AgentMonitoring";
 import Analytics from "./pages/Analytics";
 import Broadcasts from "./pages/Broadcasts";
 import MediaLibrary from "./pages/MediaLibrary";
@@ -47,8 +46,6 @@ function Console() {
         return <DashboardOverview tenantId={activeTenant} />;
       case "live-chats":
         return <LiveChats tenantId={activeTenant} />;
-      case "agent-monitoring":
-        return <AgentMonitoring tenantId={activeTenant} />;
       case "broadcasts":
         return <Broadcasts tenantId={activeTenant} />;
       case "media-library":

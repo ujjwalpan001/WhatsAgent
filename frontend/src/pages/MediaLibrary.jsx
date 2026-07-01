@@ -39,33 +39,42 @@ export default function MediaLibrary({ tenantId }) {
   };
 
   const handleFileChange = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
     
     // Clear the input so the same file can be selected again if needed
     e.target.value = "";
 
-    const keyword = window.prompt("Enter a keyword trigger for this file (e.g. 'catalog', 'pricing'):");
-    if (!keyword) return;
-    if (!keyword.trim().match(/^[a-zA-Z0-9_-]+$/)) {
-      alert("Keyword should only contain letters, numbers, hyphens or underscores.");
-      return;
+    setUploading(true);
+    let successCount = 0;
+    let anyIndexed = false;
+
+    for (const file of files) {
+      const keyword = window.prompt(`Enter a keyword trigger for '${file.name}':\n(e.g. 'sofa', 'catalog')`);
+      if (!keyword) continue; // Skip if cancelled
+      if (!keyword.trim().match(/^[a-zA-Z0-9_-]+$/)) {
+        alert(`Keyword should only contain letters, numbers, hyphens or underscores. Skipping ${file.name}.`);
+        continue;
+      }
+
+      try {
+        const res = await api.addMedia(tenantId, keyword.trim().toLowerCase(), file);
+        successCount++;
+        if (res.indexing) anyIndexed = true;
+      } catch (err) {
+        alert(`Upload failed for ${file.name}: ` + err.message);
+      }
     }
 
-    setUploading(true);
-    try {
-      const res = await api.addMedia(tenantId, keyword.trim().toLowerCase(), file);
-      if (res.indexing) {
-        alert("File uploaded successfully! Background AI indexing into the Vector DB has started.");
+    if (successCount > 0) {
+      if (anyIndexed) {
+        alert(`${successCount} file(s) uploaded successfully! Background AI indexing has started for your documents.`);
       } else {
-        alert("File uploaded successfully!");
+        alert(`${successCount} image(s) uploaded successfully to your media library!`);
       }
       loadMedia(); // Refresh list
-    } catch (err) {
-      alert("Upload failed: " + err.message);
-    } finally {
-      setUploading(false);
     }
+    setUploading(false);
   };
 
   const handleDelete = async (keyword) => {
@@ -105,6 +114,7 @@ export default function MediaLibrary({ tenantId }) {
             onChange={handleFileChange} 
             className="hidden" 
             accept=".pdf,.jpg,.jpeg,.png,.webp"
+            multiple
           />
           <button 
             onClick={handleUploadClick}
